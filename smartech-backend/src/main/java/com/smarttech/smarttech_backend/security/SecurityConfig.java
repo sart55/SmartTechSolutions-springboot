@@ -58,6 +58,7 @@ public class SecurityConfig {
                         )
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/**").authenticated()
@@ -103,6 +104,7 @@ public class SecurityConfig {
         return source;
     }
 }
+
 
 
 
