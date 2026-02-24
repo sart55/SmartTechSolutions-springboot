@@ -31,9 +31,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         try {
 
+            // ✅ IMPORTANT: Allow preflight requests to pass through
+            if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+                filterChain.doFilter(request, response);
+                return;
+            }
 
             String authHeader = request.getHeader("Authorization");
 
+            // If no Authorization header, continue filter chain
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 filterChain.doFilter(request, response);
                 return;
