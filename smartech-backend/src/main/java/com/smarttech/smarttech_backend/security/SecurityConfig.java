@@ -7,6 +7,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -30,7 +31,6 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
 
-    // ================= AUTHENTICATION MANAGER =================
     @Bean
     public AuthenticationManager authenticationManager() {
         DaoAuthenticationProvider provider =
@@ -39,23 +39,19 @@ public class SecurityConfig {
         return new ProviderManager(provider);
     }
 
-    // ================= SECURITY FILTER CHAIN =================
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-            // Disable CSRF (JWT based authentication)
             .csrf(csrf -> csrf.disable())
 
-            // Enable CORS using configuration below
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            // 🔥 Enable CORS first
+            .cors(Customizer.withDefaults())
 
-            // Stateless session (because JWT)
             .sessionManagement(sm ->
                     sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
 
-            // Custom 401 handler
             .exceptionHandling(ex ->
                     ex.authenticationEntryPoint(
                             (request, response, authException) ->
@@ -63,38 +59,35 @@ public class SecurityConfig {
                     )
             )
 
-            // Authorization rules
             .authorizeHttpRequests(auth -> auth
 
-                    // ✅ Always allow preflight
-                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    // 🔥 CRITICAL — explicitly allow OPTIONS globally
+                    .requestMatchers(request ->
+                            HttpMethod.OPTIONS.matches(request.getMethod())
+                    ).permitAll()
 
-                    // ✅ Public endpoints
+                    // Public endpoints
                     .requestMatchers("/auth/**").permitAll()
 
-                    // ✅ Everything else requires authentication
+                    // Everything else secured
                     .anyRequest().authenticated()
             )
 
-            // Add JWT filter before UsernamePasswordAuthenticationFilter
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // ================= CORS CONFIGURATION =================
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Allowed frontend origins
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:5173",
                 "https://smarttech-solutions-react.vercel.app"
         ));
 
-        // Allowed HTTP methods
         configuration.setAllowedMethods(List.of(
                 "GET",
                 "POST",
@@ -103,17 +96,14 @@ public class SecurityConfig {
                 "OPTIONS"
         ));
 
-        // Allowed headers
         configuration.setAllowedHeaders(List.of(
                 "Authorization",
                 "Content-Type",
                 "Cache-Control"
         ));
 
-        // Allow credentials (important for JWT)
         configuration.setAllowCredentials(true);
 
-        // Cache preflight response for 1 hour
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source =
