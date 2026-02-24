@@ -18,9 +18,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
-import jakarta.servlet.http.HttpServletResponse;
-
 import java.util.List;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableWebSecurity
@@ -58,18 +57,14 @@ public class SecurityConfig {
                         )
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // allow preflight requests
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/**").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/**").authenticated()
-
                         .anyRequest().authenticated()
                 )
-
-
-
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -80,32 +75,30 @@ public class SecurityConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
+        // Allowed origins
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5173",                        // React dev server
                 "https://smarttech-solutions-react.vercel.app" // Production
         ));
 
-
+        // Allowed HTTP methods
         configuration.setAllowedMethods(
                 List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
         );
 
+        // Allowed headers
         configuration.setAllowedHeaders(
                 List.of("*")
         );
 
+        // Allow cookies / credentials
         configuration.setAllowCredentials(true);
 
+        // Register CORS for all paths
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
-
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
     }
 }
-
-
-
-
-
