@@ -1,6 +1,5 @@
 package com.smarttech.smarttech_backend.controller;
 
-import com.smarttech.smarttech_backend.dto.AuthRequest;
 import com.smarttech.smarttech_backend.dto.JwtResponse;
 import com.smarttech.smarttech_backend.dto.LoginRequest;
 import com.smarttech.smarttech_backend.security.JwtUtil;
@@ -11,10 +10,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {
+        "http://localhost:5173",
+        "https://smarttech-solutions-react.vercel.app"
+})
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -41,4 +42,3 @@ public class AuthController {
         return ResponseEntity.ok(new JwtResponse(token));
     }
 }
-
