@@ -80,7 +80,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                List.of("http://localhost:5173")
+                List.of("https://smarttech-solutions-react.vercel.app")
         );
 
         configuration.setAllowedMethods(
@@ -101,3 +101,4 @@ public class SecurityConfig {
         return source;
     }
 }
+
