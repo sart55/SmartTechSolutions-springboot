@@ -19,7 +19,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -31,65 +30,95 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
 
+    // ================= AUTHENTICATION MANAGER =================
     @Bean
     public AuthenticationManager authenticationManager() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+        DaoAuthenticationProvider provider =
+                new DaoAuthenticationProvider(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder);
         return new ProviderManager(provider);
     }
 
+    // ================= SECURITY FILTER CHAIN =================
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
+            // Disable CSRF (JWT based authentication)
             .csrf(csrf -> csrf.disable())
+
+            // Enable CORS using configuration below
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .exceptionHandling(ex -> ex.authenticationEntryPoint(
-                (request, response, authException) ->
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
-            ))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // Allow preflight requests
-                .requestMatchers("/auth/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/**").authenticated()
-                .requestMatchers(HttpMethod.POST, "/**").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/**").authenticated()
-                .anyRequest().authenticated()
+
+            // Stateless session (because JWT)
+            .sessionManagement(sm ->
+                    sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
+
+            // Custom 401 handler
+            .exceptionHandling(ex ->
+                    ex.authenticationEntryPoint(
+                            (request, response, authException) ->
+                                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+                    )
+            )
+
+            // Authorization rules
+            .authorizeHttpRequests(auth -> auth
+
+                    // ✅ Always allow preflight
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                    // ✅ Public endpoints
+                    .requestMatchers("/auth/**").permitAll()
+
+                    // ✅ Everything else requires authentication
+                    .anyRequest().authenticated()
+            )
+
+            // Add JWT filter before UsernamePasswordAuthenticationFilter
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+    // ================= CORS CONFIGURATION =================
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Allowed origins
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:5173",                        // React dev server
-            "https://smarttech-solutions-react.vercel.app" // Production
+        // Allowed frontend origins
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "https://smarttech-solutions-react.vercel.app"
         ));
 
         // Allowed HTTP methods
-        configuration.setAllowedMethods(Arrays.asList(
-            "GET", "POST", "PUT", "DELETE", "OPTIONS"
+        configuration.setAllowedMethods(List.of(
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE",
+                "OPTIONS"
         ));
 
-        // Allowed headers — include common headers + Authorization for JWT
-        configuration.setAllowedHeaders(Arrays.asList(
-            "Authorization",
-            "Cache-Control",
-            "Content-Type"
+        // Allowed headers
+        configuration.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "Cache-Control"
         ));
 
-        // Allow credentials (cookies, auth headers)
+        // Allow credentials (important for JWT)
         configuration.setAllowCredentials(true);
 
-        // Register CORS for all paths
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // Cache preflight response for 1 hour
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
