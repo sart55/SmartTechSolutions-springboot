@@ -25,15 +25,16 @@ public class Project {
     private String customerContact;
     private String customerCollege;
     private String customerBranch;
+    private Double totalAmount = 0.0;
 
     @Column(nullable = false)
     private Boolean quotationCreated = false;
+
     @OneToMany(mappedBy = "project", cascade = CascadeType.ALL)
     @JsonIgnore
     private List<Quotation> quotations;
 
     // SIMPLE STRING STATUS
     private String status = "OPEN";
-
 
 }
