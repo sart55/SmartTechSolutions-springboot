@@ -1,5 +1,6 @@
 package com.smarttech.smarttech_backend.service;
 
+import com.smarttech.smarttech_backend.dto.PaymentSummary;
 import com.smarttech.smarttech_backend.entity.Payment;
 import com.smarttech.smarttech_backend.entity.Project;
 import com.smarttech.smarttech_backend.repository.PaymentRepository;
@@ -25,14 +26,63 @@ public class PaymentService {
 
     // Save payment with username of logged-in user
     public Payment savePayment(Long projectId, Payment payment, String username) {
+
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("Project not found"));
 
+        Double totalProjectAmount = project.getTotalAmount();
+
+        if (totalProjectAmount == null || totalProjectAmount <= 0) {
+            throw new RuntimeException("Project total amount not set");
+        }
+
+        // 🔥 Calculate already paid amount
+        Double totalPaid = paymentRepository.findByProject_Id(projectId)
+                .stream()
+                .mapToDouble(Payment::getAmount)
+                .sum();
+
+        Double remainingAmount = totalProjectAmount - totalPaid;
+
+        if (payment.getAmount() > remainingAmount) {
+            throw new RuntimeException("Payment exceeds remaining amount");
+        }
+
         payment.setProject(project);
-        payment.setUsername(username);          // Save the logged-in user's username
-        payment.setCreatedAt(LocalDateTime.now()); // Optional: save created timestamp
+        payment.setUsername(username);
+        payment.setCreatedAt(LocalDateTime.now());
 
         return paymentRepository.save(payment);
+    }
+
+    public Project saveProjectTotalAmount(Long projectId, Double totalAmount) {
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        if (project.getTotalAmount() != null && project.getTotalAmount() > 0) {
+            throw new RuntimeException("Total amount already set for this project");
+        }
+
+        project.setTotalAmount(totalAmount);
+        return projectRepository.save(project);
+    }
+
+    public PaymentSummary getPaymentSummary(Long projectId) {
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
+        Double totalAmount = project.getTotalAmount() == null ? 0 : project.getTotalAmount();
+
+        Double totalPaid = paymentRepository.findByProject_Id(projectId)
+                .stream()
+                .mapToDouble(Payment::getAmount)
+                .sum();
+
+        Double remaining = totalAmount - totalPaid;
+
+        return new PaymentSummary(totalAmount, totalPaid, remaining);
     }
 
 
