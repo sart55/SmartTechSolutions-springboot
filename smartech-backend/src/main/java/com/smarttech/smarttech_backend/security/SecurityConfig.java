@@ -45,7 +45,7 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
 
-            // 🔥 Enable CORS first
+          
             .cors(Customizer.withDefaults())
 
             .sessionManagement(sm ->
@@ -61,13 +61,14 @@ public class SecurityConfig {
 
             .authorizeHttpRequests(auth -> auth
 
-                    // 🔥 CRITICAL — explicitly allow OPTIONS globally
+                    
                     .requestMatchers(request ->
                             HttpMethod.OPTIONS.matches(request.getMethod())
                     ).permitAll()
 
                     // Public endpoints
                     .requestMatchers("/auth/**").permitAll()
+                    .requestMatchers("/public").permitAll()  
 
                     // Everything else secured
                     .anyRequest().authenticated()
