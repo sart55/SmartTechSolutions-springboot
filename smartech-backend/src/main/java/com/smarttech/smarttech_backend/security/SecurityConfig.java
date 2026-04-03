@@ -31,13 +31,18 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
 
+
+
     @Bean
-    public AuthenticationManager authenticationManager() {
-        DaoAuthenticationProvider provider =
-                new DaoAuthenticationProvider(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder);
-        return new ProviderManager(provider);
-    }
+public AuthenticationManager authenticationManager() {
+
+    DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+
+    provider.setUserDetailsService(userDetailsService); // ✅ correct
+    provider.setPasswordEncoder(passwordEncoder);       // ✅ correct
+
+    return new ProviderManager(provider);
+}
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
