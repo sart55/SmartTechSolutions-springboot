@@ -9,7 +9,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.nio.file.Files;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 
@@ -38,11 +39,15 @@ public class AiService {
 
     private final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-    // ✅ Load schema once
+    // ✅ FIXED: Load schema safely (WORKS IN JAR + LOCAL)
     private void loadSchema() {
         try {
             ClassPathResource resource = new ClassPathResource("ai/db-schema.md");
-            schemaContent = new String(Files.readAllBytes(resource.getFile().toPath()));
+
+            try (InputStream inputStream = resource.getInputStream()) {
+                schemaContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            }
+
         } catch (Exception e) {
             throw new RuntimeException("Failed to load schema file", e);
         }
@@ -89,11 +94,9 @@ public class AiService {
             redisTemplate.opsForList()
                     .rightPush(getSessionKey(username), json);
 
-            // keep last 10 messages
             redisTemplate.opsForList()
                     .trim(getSessionKey(username), -10, -1);
 
-            // expire after 30 min
             redisTemplate.expire(getSessionKey(username), Duration.ofMinutes(30));
 
         } catch (Exception e) {
@@ -101,6 +104,7 @@ public class AiService {
         }
     }
 
+    // 🔥 WITHOUT MEMORY GROQ CALL
     private String callGroqWithoutMemory(String prompt) {
 
         HttpHeaders headers = new HttpHeaders();
@@ -111,7 +115,6 @@ public class AiService {
         request.put("model", "llama-3.3-70b-versatile");
 
         List<Map<String, String>> messages = new ArrayList<>();
-
         messages.add(Map.of("role", "user", "content", prompt));
 
         request.put("messages", messages);
@@ -133,11 +136,11 @@ public class AiService {
         return message.get("content").toString();
     }
 
-    // 🔥 MAIN METHOD (UPDATED)
+    // 🔥 MAIN METHOD
     public Object processQuery(String question, String username) {
 
         String type = classifyQuestion(question);
-        // 🔥 If previous conversation was SQL → treat follow-up as SQL
+
         List<Map<String, String>> history = getChatHistory(username);
 
         if (!history.isEmpty()) {
@@ -148,7 +151,6 @@ public class AiService {
             }
         }
 
-// 🔥 fallback keyword check
         if (question.toLowerCase().matches(".*(all|list|show|get|find|email|name|amount|projects|customers|last|top).*")) {
             type = "SQL";
         }
@@ -168,19 +170,18 @@ public class AiService {
                 throw new RuntimeException("Unsafe query blocked!");
             }
 
-            // 🔥 SAVE ONLY QUESTION + SQL (NOT DB RESULT)
             saveMessage(username, "user", question);
             saveMessage(username, "assistant", sql);
 
-            // return DB result (but NOT saved in Redis)
             return jdbcTemplate.queryForList(sql);
-        }else {
+
+        } else {
             return Map.of("response",
                     callGroqWithMemory(username, question));
         }
     }
 
-    // 🔥 COMMON GROQ CALL (WITH MEMORY)
+    // 🔥 GROQ WITH MEMORY
     private String callGroqWithMemory(String username, String prompt) {
 
         HttpHeaders headers = new HttpHeaders();
@@ -231,7 +232,6 @@ STRICT RULES:
 
         String reply = message.get("content").toString();
 
-        // 🔥 SAVE CHAT
         saveMessage(username, "user", prompt);
         saveMessage(username, "assistant", reply);
 
